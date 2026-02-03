@@ -416,3 +416,113 @@ export const HealthIcon = createIcon(
     <path d="M8 12h2l1 2l2-4l1 2h2" strokeLinecap="round" strokeLinejoin="round" />
   </>
 );
+
+// ============================================================================
+// Boost/Priority Icons - For task boost feature
+// ============================================================================
+
+// Rocket - For boost/promote actions
+export const RocketIcon = createIcon(
+  <>
+    {/* Rocket body */}
+    <path d="M12 2C8 6 6 10 6 14c0 2 2 4 6 6c4-2 6-4 6-6c0-4-2-8-6-12z" strokeLinejoin="round" />
+    {/* Window */}
+    <circle cx="12" cy="10" r="2" />
+    {/* Flames */}
+    <path d="M10 18v3l2-1l2 1v-3" strokeLinecap="round" strokeLinejoin="round" />
+    {/* Fins */}
+    <path d="M6 14l-2 3h3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M18 14l2 3h-3" strokeLinecap="round" strokeLinejoin="round" />
+  </>
+);
+
+// Trending Up - For analytics/growth
+export const TrendingUpIcon = createIcon(
+  <>
+    <path d="M3 17l6-6l4 4l8-8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 7h4v4" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="3" cy="17" r="1" fill="currentColor" />
+  </>
+);
+
+// Trending Down - For analytics/decline
+export const TrendingDownIcon = createIcon(
+  <>
+    <path d="M3 7l6 6l4-4l8 8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 17h4v-4" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="3" cy="7" r="1" fill="currentColor" />
+  </>
+);
+
+// Eye - For visibility/impressions
+export const EyeIcon = createIcon(
+  <>
+    <path d="M2 12s3-7 10-7s10 7 10 7s-3 7-10 7s-10-7-10-7z" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="3" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" />
+  </>
+);
+
+// Crown - For premium/top placement
+export const CrownIcon = createIcon(
+  <>
+    <path d="M2 18L5 8l4 4l3-6l3 6l4-4l3 10H2z" strokeLinejoin="round" />
+    <path d="M2 18h20" strokeLinecap="round" />
+    {/* Jewels */}
+    <circle cx="5" cy="8" r="1" fill="currentColor" />
+    <circle cx="12" cy="6" r="1.5" fill="currentColor" />
+    <circle cx="19" cy="8" r="1" fill="currentColor" />
+  </>
+);
+
+// Zap/Lightning - For urgent priority
+export const ZapIcon = createIcon(
+  <>
+    <path d="M13 2L3 14h9l-1 8l10-12h-9l1-8z" strokeLinejoin="round" />
+  </>
+);
+
+// Star - For featured
+export const StarIcon = createIcon(
+  <>
+    <path d="M12 2l3 6l6 1l-4.5 4l1 6.5l-5.5-3l-5.5 3l1-6.5L3 9l6-1l3-6z" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="2" opacity="0.3" fill="currentColor" />
+  </>
+);
+
+// Chart/Analytics - For boost analytics
+export const ChartIcon = createIcon(
+  <>
+    <path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 16v-4" strokeLinecap="round" />
+    <path d="M11 16v-8" strokeLinecap="round" />
+    <path d="M15 16v-6" strokeLinecap="round" />
+    <path d="M19 16v-10" strokeLinecap="round" />
+    {/* Data points */}
+    <circle cx="7" cy="12" r="1" fill="currentColor" />
+    <circle cx="11" cy="8" r="1" fill="currentColor" />
+    <circle cx="15" cy="10" r="1" fill="currentColor" />
+    <circle cx="19" cy="6" r="1" fill="currentColor" />
+  </>
+);
+
+// Fire - For hot/popular tasks
+export const FireIcon = createIcon(
+  <>
+    <path d="M12 2c-2 4-1 6 0 8c-3-1-4-3-4-5c-2 4-1 9 4 12c5-3 6-8 4-12c0 2-1 4-4 5c1-2 2-4 0-8z" strokeLinejoin="round" />
+    <circle cx="12" cy="14" r="2" opacity="0.5" fill="currentColor" />
+  </>
+);
+
+// Medal - For achievement/ranking
+export const MedalIcon = createIcon(
+  <>
+    {/* Ribbon */}
+    <path d="M8 2l4 6l4-6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 2v8M16 2v8" strokeLinecap="round" />
+    {/* Medal circle */}
+    <circle cx="12" cy="15" r="6" />
+    <circle cx="12" cy="15" r="3" opacity="0.5" />
+    <path d="M12 12v3l2 1" strokeLinecap="round" strokeLinejoin="round" />
+  </>
+);

@@ -53,6 +53,21 @@ export const reputationEventTypeEnum = pgEnum('reputation_event_type', [
   'dispute_lost',
 ]);
 
+// Boost-related enums
+export const boostTierEnum = pgEnum('boost_tier', [
+  'standard',   // No boost - default
+  'featured',   // 2x visibility multiplier
+  'urgent',     // 4x visibility multiplier + highlighted
+  'premium',    // 8x visibility multiplier + top placement + highlighted
+]);
+
+export const boostPaymentStatusEnum = pgEnum('boost_payment_status', [
+  'pending',    // Payment initiated
+  'completed',  // Payment successful
+  'failed',     // Payment failed
+  'refunded',   // Payment refunded
+]);
+
 // Tables
 export const agents = pgTable('agents', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -87,6 +102,11 @@ export const tasks = pgTable('tasks', {
   difficulty: difficultyEnum('difficulty').default('medium').notNull(),
   requirements: jsonb('requirements').$type<string[]>().default([]),
   deadline: timestamp('deadline'),
+  // Boost-related fields
+  currentBoostTier: boostTierEnum('current_boost_tier').default('standard').notNull(),
+  boostExpiresAt: timestamp('boost_expires_at'),
+  boostPriority: integer('boost_priority').default(0).notNull(), // Calculated priority score
+  totalBoostSpend: integer('total_boost_spend').default(0).notNull(), // Track total spend in cents
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -115,6 +135,51 @@ export const taskInvites = pgTable('task_invites', {
   expiresAt: timestamp('expires_at'),
   maxUses: integer('max_uses').default(1).notNull(),
   uses: integer('uses').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Task Boosts - Track boost history and analytics
+export const taskBoosts = pgTable('task_boosts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id')
+    .references(() => tasks.id, { onDelete: 'cascade' })
+    .notNull(),
+  agentId: uuid('agent_id')
+    .references(() => agents.id, { onDelete: 'cascade' })
+    .notNull(),
+  tier: boostTierEnum('tier').notNull(),
+  durationHours: integer('duration_hours').notNull(), // Boost duration in hours
+  priceAmount: integer('price_amount').notNull(), // Price in cents
+  priceCurrency: varchar('price_currency', { length: 10 }).default('USD').notNull(),
+  paymentStatus: boostPaymentStatusEnum('payment_status').default('pending').notNull(),
+  paymentTxHash: varchar('payment_tx_hash', { length: 255 }),
+  startsAt: timestamp('starts_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  // Analytics fields
+  impressionsBefore: integer('impressions_before').default(0).notNull(), // Task views before boost
+  impressionsDuring: integer('impressions_during').default(0).notNull(), // Task views during boost
+  clicksBefore: integer('clicks_before').default(0).notNull(), // Task clicks before boost
+  clicksDuring: integer('clicks_during').default(0).notNull(), // Task clicks during boost
+  claimsDuring: integer('claims_during').default(0).notNull(), // Task claims during boost period
+  queuePositionAtStart: integer('queue_position_at_start'), // Position when boost started
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Boost Analytics - Daily aggregate analytics for boost performance
+export const boostAnalytics = pgTable('boost_analytics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  taskId: uuid('task_id')
+    .references(() => tasks.id, { onDelete: 'cascade' })
+    .notNull(),
+  boostId: uuid('boost_id')
+    .references(() => taskBoosts.id, { onDelete: 'cascade' })
+    .notNull(),
+  date: timestamp('date').notNull(), // Analytics date (daily aggregation)
+  impressions: integer('impressions').default(0).notNull(),
+  clicks: integer('clicks').default(0).notNull(),
+  claims: integer('claims').default(0).notNull(),
+  avgQueuePosition: integer('avg_queue_position'), // Average position that day
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -199,6 +264,7 @@ export const agentsRelations = relations(agents, ({ many }) => ({
   reputationEvents: many(reputationEvents),
   payments: many(payments),
   apiKeys: many(apiKeys),
+  boosts: many(taskBoosts),
 }));
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -210,6 +276,8 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   payments: many(payments),
   milestones: many(taskMilestones),
   invites: many(taskInvites),
+  boosts: many(taskBoosts),
+  boostAnalytics: many(boostAnalytics),
 }));
 
 export const taskMilestonesRelations = relations(taskMilestones, ({ one, many }) => ({
@@ -272,5 +340,28 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
   agent: one(agents, {
     fields: [apiKeys.agentId],
     references: [agents.id],
+  }),
+}));
+
+export const taskBoostsRelations = relations(taskBoosts, ({ one, many }) => ({
+  task: one(tasks, {
+    fields: [taskBoosts.taskId],
+    references: [tasks.id],
+  }),
+  agent: one(agents, {
+    fields: [taskBoosts.agentId],
+    references: [agents.id],
+  }),
+  analytics: many(boostAnalytics),
+}));
+
+export const boostAnalyticsRelations = relations(boostAnalytics, ({ one }) => ({
+  task: one(tasks, {
+    fields: [boostAnalytics.taskId],
+    references: [tasks.id],
+  }),
+  boost: one(taskBoosts, {
+    fields: [boostAnalytics.boostId],
+    references: [taskBoosts.id],
   }),
 }));

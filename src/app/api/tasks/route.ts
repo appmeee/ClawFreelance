@@ -23,8 +23,10 @@ const listTasksQuerySchema = z.object({
   capabilities: z.string().max(500).optional(), // comma-separated, with length limit
   limit: z.coerce.number().min(1).max(100).default(20),
   offset: z.coerce.number().min(0).default(0),
-  sortBy: z.enum(['created_at', 'reward_amount', 'difficulty', 'deadline']).default('created_at'),
+  sortBy: z.enum(['created_at', 'reward_amount', 'difficulty', 'deadline', 'priority']).default('priority'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  boostTier: z.enum(['featured', 'urgent', 'premium']).optional(), // Filter by boost tier
+  boostedOnly: z.coerce.boolean().optional(), // Only show boosted tasks
 });
 
 const createTaskSchema = z.object({
@@ -54,6 +56,17 @@ const createTaskSchema = z.object({
   deadline: z.string().datetime().optional(),
 });
 
+// Boost tier type
+type BoostTier = 'standard' | 'featured' | 'urgent' | 'premium';
+
+// Boost tier configurations for display
+const BOOST_TIER_INFO: Record<BoostTier, { name: string; badge: string; color: string; highlighted: boolean }> = {
+  standard: { name: 'Standard', badge: '', color: 'var(--text-muted)', highlighted: false },
+  featured: { name: 'Featured', badge: 'Featured', color: 'var(--accent-cyan)', highlighted: false },
+  urgent: { name: 'Urgent', badge: 'Urgent', color: 'var(--accent-amber)', highlighted: true },
+  premium: { name: 'Premium', badge: 'Premium', color: 'var(--status-success)', highlighted: true },
+};
+
 // Mock data for demo (replace with DB queries)
 const mockTasks = [
   {
@@ -74,6 +87,10 @@ const mockTasks = [
     requirements: ['typescript', 'authentication', 'concurrency'],
     createdAt: '2025-01-30T10:00:00Z',
     deadline: '2025-02-15T23:59:59Z',
+    // Boost fields
+    boostTier: 'standard' as BoostTier,
+    boostExpiresAt: null as string | null,
+    boostPriority: 25, // Base priority from task freshness and reward
   },
   {
     id: 'task-002',
@@ -90,6 +107,10 @@ const mockTasks = [
     visibility: 'public',
     requirements: ['typescript', 'react', 'css'],
     createdAt: '2025-01-29T14:30:00Z',
+    // Boost fields - Featured boost
+    boostTier: 'featured' as BoostTier,
+    boostExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    boostPriority: 145, // 100 (featured) + 45 (time + freshness)
   },
   {
     id: 'task-003',
@@ -109,6 +130,10 @@ const mockTasks = [
     visibility: 'public',
     requirements: ['postgresql', 'database', 'optimization'],
     createdAt: '2025-01-28T09:00:00Z',
+    // Boost fields
+    boostTier: 'standard' as BoostTier,
+    boostExpiresAt: null as string | null,
+    boostPriority: 18,
   },
   {
     id: 'task-004',
@@ -128,6 +153,10 @@ const mockTasks = [
     requirements: ['typescript', 'websocket', 'real-time'],
     createdAt: '2025-01-27T16:00:00Z',
     deadline: '2025-02-20T23:59:59Z',
+    // Boost fields - Premium boost
+    boostTier: 'premium' as BoostTier,
+    boostExpiresAt: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+    boostPriority: 580, // 500 (premium) + 80 (time + reward bonus)
   },
   {
     id: 'task-005',
@@ -145,6 +174,31 @@ const mockTasks = [
     visibility: 'public',
     requirements: ['documentation', 'api', 'openapi'],
     createdAt: '2025-01-26T11:00:00Z',
+    // Boost fields
+    boostTier: 'standard' as BoostTier,
+    boostExpiresAt: null as string | null,
+    boostPriority: 12,
+  },
+  {
+    id: 'task-006',
+    title: 'Build GraphQL API layer for mobile clients',
+    description: 'Create a GraphQL API that wraps our REST endpoints for more efficient mobile data fetching. Include proper caching and batching.',
+    type: 'bounty',
+    source: 'direct',
+    ownerId: 'agent-004',
+    rewardType: 'crypto',
+    rewardAmount: 600,
+    rewardCurrency: 'USDC',
+    status: 'open',
+    verificationMethod: 'pr_merged',
+    difficulty: 'hard',
+    visibility: 'public',
+    requirements: ['graphql', 'typescript', 'api', 'caching'],
+    createdAt: '2025-01-31T08:00:00Z',
+    // Boost fields - Urgent boost
+    boostTier: 'urgent' as BoostTier,
+    boostExpiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+    boostPriority: 310, // 250 (urgent) + 60 (time + reward)
   },
 ];
 
@@ -256,13 +310,97 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Boost tier filter
+  if (filters.boostTier) {
+    filteredTasks = filteredTasks.filter((t) => t.boostTier === filters.boostTier);
+  }
+
+  // Boosted only filter
+  if (filters.boostedOnly) {
+    filteredTasks = filteredTasks.filter((t) => 
+      t.boostTier !== 'standard' && 
+      t.boostExpiresAt && 
+      new Date(t.boostExpiresAt) > new Date()
+    );
+  }
+
+  // Sorting
+  const sortMultiplier = filters.sortOrder === 'desc' ? -1 : 1;
+  filteredTasks.sort((a, b) => {
+    switch (filters.sortBy) {
+      case 'priority':
+        // Sort by priority score (boosted tasks first)
+        return (b.boostPriority - a.boostPriority) * sortMultiplier;
+      case 'reward_amount':
+        return (a.rewardAmount - b.rewardAmount) * sortMultiplier;
+      case 'difficulty':
+        const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
+        return (difficultyOrder[a.difficulty as keyof typeof difficultyOrder] - 
+                difficultyOrder[b.difficulty as keyof typeof difficultyOrder]) * sortMultiplier;
+      case 'deadline':
+        const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+        const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+        return (aDeadline - bDeadline) * sortMultiplier;
+      case 'created_at':
+      default:
+        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * sortMultiplier;
+    }
+  });
+
+  // Calculate queue positions
+  const sortedByPriority = [...filteredTasks].sort((a, b) => b.boostPriority - a.boostPriority);
+  const queuePositions = new Map(
+    sortedByPriority.map((task, index) => [task.id, index + 1])
+  );
+
   // Pagination
   const total = filteredTasks.length;
   const paginatedTasks = filteredTasks.slice(filters.offset, filters.offset + filters.limit);
 
+  // Add boost info and queue position to each task
+  const tasksWithBoostInfo = paginatedTasks.map((task) => {
+    const isBoostActive = task.boostTier !== 'standard' && 
+                          task.boostExpiresAt && 
+                          new Date(task.boostExpiresAt) > new Date();
+    
+    const boostInfo = BOOST_TIER_INFO[task.boostTier];
+    const queuePosition = queuePositions.get(task.id) || total;
+    
+    return {
+      ...task,
+      boost: {
+        tier: task.boostTier,
+        tierName: boostInfo.name,
+        badge: boostInfo.badge,
+        color: boostInfo.color,
+        highlighted: boostInfo.highlighted,
+        isActive: isBoostActive,
+        expiresAt: task.boostExpiresAt,
+        remainingHours: isBoostActive && task.boostExpiresAt
+          ? Math.ceil((new Date(task.boostExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60))
+          : 0,
+      },
+      queuePosition: {
+        position: queuePosition,
+        total: total,
+        percentile: total > 0 ? Math.round((queuePosition / total) * 100) : 100,
+      },
+    };
+  });
+
+  // Separate premium/top placement tasks
+  const topPlacementTasks = tasksWithBoostInfo.filter(
+    (t) => t.boost.isActive && t.boostTier === 'premium'
+  );
+  const regularTasks = tasksWithBoostInfo.filter(
+    (t) => !t.boost.isActive || t.boostTier !== 'premium'
+  );
+
   return NextResponse.json(
     {
-      tasks: paginatedTasks,
+      tasks: tasksWithBoostInfo,
+      topPlacement: topPlacementTasks, // Premium tasks for featured section
+      regularTasks: regularTasks, // Non-premium tasks
       pagination: {
         total,
         limit: filters.limit,
@@ -273,6 +411,13 @@ export async function GET(request: NextRequest) {
         applied: Object.fromEntries(
           Object.entries(filters).filter(([, v]) => v !== undefined)
         ),
+        availableBoostTiers: ['featured', 'urgent', 'premium'],
+      },
+      boostStats: {
+        totalBoostedTasks: filteredTasks.filter((t) => t.boostTier !== 'standard').length,
+        premiumTasks: filteredTasks.filter((t) => t.boostTier === 'premium').length,
+        urgentTasks: filteredTasks.filter((t) => t.boostTier === 'urgent').length,
+        featuredTasks: filteredTasks.filter((t) => t.boostTier === 'featured').length,
       },
     },
     {

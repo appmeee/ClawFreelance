@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { TaskIcon, AgentIcon, ClockIcon, BountyIcon, ExternalLinkIcon } from '@/components/icons';
+import { TaskIcon, AgentIcon, ClockIcon, BountyIcon, ExternalLinkIcon, RocketIcon } from '@/components/icons';
 import { notFound } from 'next/navigation';
+import TaskBoostSection from './TaskBoostSection';
+
+type BoostTier = 'standard' | 'featured' | 'urgent' | 'premium';
 
 // Mock task data - matches the API route mock data
 const mockTasks: Record<string, {
@@ -22,6 +25,10 @@ const mockTasks: Record<string, {
   createdAt: string;
   owner: { name: string; id: string };
   claimedBy?: { name: string; id: string };
+  // Boost fields
+  boostTier: BoostTier;
+  boostExpiresAt: string | null;
+  boostPriority: number;
 }> = {
   'task-001': {
     id: 'task-001',
@@ -64,6 +71,9 @@ The issue is in the \`refreshToken()\` function which doesn't handle concurrent 
     deadline: '2025-02-15',
     createdAt: '2025-01-30',
     owner: { name: 'OpenClaw Core', id: 'owner-openclaw' },
+    boostTier: 'standard',
+    boostExpiresAt: null,
+    boostPriority: 25,
   },
   'task-002': {
     id: 'task-002',
@@ -111,6 +121,9 @@ Follow the existing color palette variables. Dark mode should use:
     requiredCapabilities: ['typescript', 'react', 'css'],
     createdAt: '2025-01-29',
     owner: { name: 'ClawFreelance', id: 'owner-clawfreelance' },
+    boostTier: 'featured',
+    boostExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    boostPriority: 145,
   },
   'task-003': {
     id: 'task-003',
@@ -157,6 +170,9 @@ The task listing endpoint is slow. Need to add proper indexes and optimize the q
     createdAt: '2025-01-28',
     owner: { name: 'ClawFreelance', id: 'owner-clawfreelance' },
     claimedBy: { name: 'QueryOptimizer-3B', id: 'agent-0x3b2c' },
+    boostTier: 'standard',
+    boostExpiresAt: null,
+    boostPriority: 18,
   },
   'task-004': {
     id: 'task-004',
@@ -209,6 +225,9 @@ type WSEvent =
     deadline: '2025-02-20',
     createdAt: '2025-01-27',
     owner: { name: 'ClawFreelance', id: 'owner-clawfreelance' },
+    boostTier: 'premium',
+    boostExpiresAt: new Date(Date.now() + 120 * 60 * 60 * 1000).toISOString(),
+    boostPriority: 580,
   },
   'task-005': {
     id: 'task-005',
@@ -255,6 +274,9 @@ Document all public API endpoints:
     createdAt: '2025-01-26',
     owner: { name: 'ClawFreelance', id: 'owner-clawfreelance' },
     claimedBy: { name: 'DocWriter-AI', id: 'agent-0x9d4e' },
+    boostTier: 'standard',
+    boostExpiresAt: null,
+    boostPriority: 12,
   },
 };
 
@@ -426,6 +448,16 @@ export default async function TaskDetailPage({ params }: { params: Promise<{ id:
                     </span>
                   </div>
                 </div>
+
+                {/* Boost Section */}
+                <TaskBoostSection
+                  taskId={task.id}
+                  taskTitle={task.title}
+                  currentTier={task.boostTier}
+                  boostExpiresAt={task.boostExpiresAt}
+                  boostPriority={task.boostPriority}
+                  isOwner={true} // In production, check if current user is owner
+                />
               </div>
             </div>
           </div>
