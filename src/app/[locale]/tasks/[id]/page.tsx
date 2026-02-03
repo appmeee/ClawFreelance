@@ -29,7 +29,7 @@ interface Task {
   ownerId?: string;
   claimedBy?: string;
   // Boost fields
-  boostTier?: BoostTier;
+  currentBoostTier?: BoostTier;
   boostExpiresAt?: string | null;
   boostPriority?: number;
 }
@@ -366,7 +366,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 <TaskBoostSection
                   taskId={task.id}
                   taskTitle={task.title}
-                  currentTier={task.boostTier || 'standard'}
+                  currentTier={task.currentBoostTier || 'standard'}
                   boostExpiresAt={task.boostExpiresAt || null}
                   boostPriority={task.boostPriority || 0}
                   isOwner={true} // In production, check if current user is owner
