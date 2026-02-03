@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import createIntlMiddleware from 'next-intl/middleware';
-import { locales, defaultLocale } from './i18n/config';
+import { NextResponse } from 'next/server';
 
 /**
  * Security middleware for ClawFreelance
@@ -14,17 +12,57 @@ import { locales, defaultLocale } from './i18n/config';
  * - Basic request logging
  */
 
-// Create the intl middleware
-const intlMiddleware = createIntlMiddleware({
-  locales,
-  defaultLocale,
-  localePrefix: 'as-needed',
-});
+// i18n Configuration (inline to avoid import issues in Edge runtime)
+// Note: Must match lib/i18n/config.ts - duplicated here because Edge runtime can't import
+const locales = ['en', 'es', 'fr', 'de', 'ja', 'zh', 'pt', 'ko'] as const;
+type Locale = (typeof locales)[number];
+const defaultLocale: Locale = 'en';
+
+// Get locale from pathname (e.g., /en/tasks -> 'en')
+function getLocaleFromPathname(pathname: string): Locale | null {
+  const segments = pathname.split('/');
+  const maybeLocale = segments[1];
+  if (locales.includes(maybeLocale as Locale)) {
+    return maybeLocale as Locale;
+  }
+  return null;
+}
+
+// Get preferred locale from cookie, Accept-Language header, or default
+function getPreferredLocale(request: NextRequest): Locale {
+  // First check for saved preference in cookie
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value;
+  if (cookieLocale && locales.includes(cookieLocale as Locale)) {
+    return cookieLocale as Locale;
+  }
+
+  // Fall back to Accept-Language header
+  const acceptLanguage = request.headers.get('accept-language');
+  if (!acceptLanguage) return defaultLocale;
+
+  // Parse Accept-Language header (e.g., "en-US,en;q=0.9,es;q=0.8")
+  const languages = acceptLanguage
+    .split(',')
+    .map((lang) => {
+      const [code, qValue] = lang.trim().split(';q=');
+      return { code: code.split('-')[0].toLowerCase(), q: qValue ? parseFloat(qValue) : 1 };
+    })
+    .sort((a, b) => b.q - a.q);
+
+  // Find first matching locale
+  for (const { code } of languages) {
+    if (locales.includes(code as Locale)) {
+      return code as Locale;
+    }
+  }
+
+  return defaultLocale;
+}
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
-  'https://clawfreelance.dev',
-  'https://www.clawfreelance.dev',
+  'https://clawfreelance.com',
+  'https://www.clawfreelance.com',
   process.env.NEXT_PUBLIC_APP_URL,
 ].filter(Boolean);
 
@@ -83,7 +121,7 @@ function getSecurityHeaders(requestId: string): Record<string, string> {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
+      'upgrade-insecure-requests',
     ].join('; '),
 
     // HSTS - enforce HTTPS (1 year, include subdomains, preload)
@@ -122,20 +160,22 @@ export function middleware(request: NextRequest) {
     return handleCorsPreFlight(request, origin);
   }
 
-  // Skip i18n for API routes
+  // Skip locale handling for API routes and static files
   const isApiRoute = pathname.startsWith('/api/');
+  const isStaticFile =
+    pathname.startsWith('/_next/') || pathname.startsWith('/_vercel/') || pathname.includes('.');
 
-  // Get response - use intl middleware for non-API routes
-  const response = isApiRoute ? NextResponse.next() : intlMiddleware(request);
+  // Handle API routes - add security headers and CORS
+  if (isApiRoute) {
+    const response = NextResponse.next();
 
-  // Add security headers
-  const securityHeaders = getSecurityHeaders(requestId);
-  for (const [key, value] of Object.entries(securityHeaders)) {
-    response.headers.set(key, value);
-  }
+    // Add security headers
+    const securityHeaders = getSecurityHeaders(requestId);
+    for (const [key, value] of Object.entries(securityHeaders)) {
+      response.headers.set(key, value);
+    }
 
-  // Add CORS headers for API routes
-  if (pathname.startsWith('/api/')) {
+    // Add CORS headers
     if (origin && isOriginAllowed(origin)) {
       response.headers.set('Access-Control-Allow-Origin', origin);
       response.headers.set('Access-Control-Allow-Credentials', 'true');
@@ -148,7 +188,35 @@ export function middleware(request: NextRequest) {
     if (request.headers.has('authorization') || request.headers.has('x-api-key')) {
       response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     }
+
+    return response;
   }
+
+  // Skip locale handling for static files
+  if (isStaticFile) {
+    return NextResponse.next();
+  }
+
+  // Check if pathname already has a locale
+  const pathnameLocale = getLocaleFromPathname(pathname);
+
+  // If no locale in URL, redirect to locale-prefixed version
+  if (!pathnameLocale) {
+    const locale = getPreferredLocale(request);
+    const newUrl = request.nextUrl.clone();
+    newUrl.pathname = `/${locale}${pathname === '/' ? '' : pathname}`;
+    return NextResponse.redirect(newUrl);
+  }
+
+  // Create response with security headers
+  const response = NextResponse.next();
+  const securityHeaders = getSecurityHeaders(requestId);
+  for (const [key, value] of Object.entries(securityHeaders)) {
+    response.headers.set(key, value);
+  }
+
+  // Add locale to response headers for downstream use
+  response.headers.set('X-Locale', pathnameLocale);
 
   // Block suspicious paths (common attack vectors)
   const blockedPaths = [
@@ -167,7 +235,7 @@ export function middleware(request: NextRequest) {
   ];
 
   const lowerPath = pathname.toLowerCase();
-  if (blockedPaths.some(blocked => lowerPath.startsWith(blocked))) {
+  if (blockedPaths.some((blocked) => lowerPath.includes(blocked))) {
     return new NextResponse('Not Found', {
       status: 404,
       headers: {

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1770092820552,
+      "tag": "0000_volatile_shiver_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770094000000,
+      "tag": "0001_add_immunefi_bugcrowd",
+      "breakpoints": true
+    }
+  ]
+}

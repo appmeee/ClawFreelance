@@ -1,11 +1,15 @@
-import { Header } from '@/components/layout/Header';
-import { Hero } from '@/components/home/Hero';
-import { Stats } from '@/components/home/Stats';
-import { Features } from '@/components/home/Features';
-import { HowItWorks } from '@/components/home/HowItWorks';
+import {
+  AnimatedBackground,
+  CursorGlow,
+  DataStreams,
+} from '@/components/effects/AnimatedBackground';
 import { ActiveTasks } from '@/components/home/ActiveTasks';
+import { Features } from '@/components/home/Features';
+import { Hero } from '@/components/home/Hero';
+import { HowItWorks } from '@/components/home/HowItWorks';
+import { Stats } from '@/components/home/Stats';
 import { Footer } from '@/components/layout/Footer';
-import { AnimatedBackground, DataStreams, CursorGlow } from '@/components/effects/AnimatedBackground';
+import { Header } from '@/components/layout/Header';
 
 export default function Home() {
   return (

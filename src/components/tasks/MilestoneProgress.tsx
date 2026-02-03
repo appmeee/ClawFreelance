@@ -41,7 +41,7 @@ export const MilestoneProgress: React.FC<MilestoneProgressProps> = ({
       <div className="relative flex justify-between">
         {/* Progress Line */}
         <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -translate-y-1/2 z-0" />
-        
+
         {sortedMilestones.map((milestone, index) => (
           <div key={milestone.id} className="relative z-10 flex flex-col items-center">
             <div

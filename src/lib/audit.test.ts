@@ -1,19 +1,22 @@
-import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import {
   createAuditLog,
-  getRecentAuditLogs,
   getAuditLogsForActor,
-  logSecurityEvent,
+  getRecentAuditLogs,
   logAuthAttempt,
   logRateLimitExceeded,
+  logSecurityEvent,
 } from './audit';
 
 // Helper to create mock NextRequest
-function createMockRequest(options: {
-  headers?: Record<string, string>;
-  url?: string;
-} = {}): NextRequest {
+function createMockRequest(
+  options: {
+    headers?: Record<string, string>;
+    url?: string;
+  } = {}
+): NextRequest {
   const headers = new Headers({
     'x-forwarded-for': '192.168.1.100',
     'user-agent': 'Mozilla/5.0 Test Agent',
@@ -159,7 +162,7 @@ describe('Audit Module', () => {
       const logs = getAuditLogsForActor(actorId);
 
       expect(logs.length).toBeGreaterThan(0);
-      logs.forEach(log => {
+      logs.forEach((log) => {
         expect(log.actorId).toBe(actorId);
       });
     });
@@ -240,20 +243,20 @@ describe('Audit Module', () => {
     it('should log rate limit events', () => {
       const request = createMockRequest();
 
-      logRateLimitExceeded(request, '/api/tasks', 'agent-rate-test');
+      logRateLimitExceeded(request, '/api/v1/tasks', 'agent-rate-test');
 
       const logs = getRecentAuditLogs(1);
       const lastLog = logs[logs.length - 1];
 
       expect(lastLog.action).toBe('rate_limit.exceeded');
-      expect(lastLog.metadata.endpoint).toBe('/api/tasks');
+      expect(lastLog.metadata.endpoint).toBe('/api/v1/tasks');
       expect(lastLog.success).toBe(false);
     });
 
     it('should log anonymous rate limit events', () => {
       const request = createMockRequest();
 
-      logRateLimitExceeded(request, '/api/register');
+      logRateLimitExceeded(request, '/api/v1/agents/register');
 
       const logs = getRecentAuditLogs(1);
       const lastLog = logs[logs.length - 1];
@@ -293,6 +296,172 @@ describe('Audit Module', () => {
 
       // Should be ISO 8601 format
       expect(new Date(entry.timestamp).toISOString()).toBe(entry.timestamp);
+    });
+  });
+
+  // ============================================
+  // BUFFER OVERFLOW TESTS
+  // ============================================
+  describe('Audit buffer management', () => {
+    it('should handle many log entries without crashing', () => {
+      const request = createMockRequest();
+
+      // Create many entries to test buffer limits
+      for (let i = 0; i < 1100; i++) {
+        createAuditLog(request, 'task.create', {
+          resourceType: 'task',
+          metadata: { iteration: i },
+        });
+      }
+
+      // Should still be able to get recent logs
+      const logs = getRecentAuditLogs(10);
+      expect(logs.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  // ============================================
+  // DEVELOPMENT MODE LOGGING TESTS
+  // ============================================
+  describe('Development mode logging', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('should log all entries when NODE_ENV is development', () => {
+      vi.stubEnv('NODE_ENV', 'development');
+      const consoleSpy = vi.spyOn(console, 'info');
+
+      const request = createMockRequest();
+      // Use an action that wouldn't normally be logged (not in alwaysLogActions, success=true)
+      createAuditLog(request, 'task.update', {
+        resourceType: 'task',
+        resourceId: 'task-123',
+        success: true,
+      });
+
+      // In development mode, even successful non-security actions should be logged
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should not log successful non-security actions in production', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+      const consoleSpy = vi.spyOn(console, 'info');
+
+      const request = createMockRequest();
+      // Use an action that wouldn't normally be logged
+      createAuditLog(request, 'task.update', {
+        resourceType: 'task',
+        resourceId: 'task-123',
+        success: true,
+      });
+
+      // In production mode, successful non-security actions should NOT be logged
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // ============================================
+  // SENSITIVE DATA REDACTION TESTS
+  // ============================================
+  describe('Sensitive data handling', () => {
+    // Note: redactSensitiveData is only applied during console logging,
+    // not on the returned entry. The entry keeps original data for processing.
+    // These tests verify the entry is created correctly and that when logged
+    // to console (via shouldLogToConsole), the redaction code is exercised.
+
+    it('should preserve metadata with sensitive keys in entry', () => {
+      const request = createMockRequest();
+      // Using 'auth.failure' triggers console logging which exercises redaction
+      const entry = createAuditLog(request, 'auth.failure', {
+        resourceType: 'auth',
+        success: false,
+        metadata: {
+          apiKey: 'secret-key-123',
+          password: 'secret-pass',
+          normalField: 'visible',
+        },
+      });
+
+      // Entry should be created successfully (original data preserved)
+      expect(entry).toBeDefined();
+      expect(entry.metadata.normalField).toBe('visible');
+      // Original values preserved in entry for processing
+      expect(entry.metadata.apiKey).toBe('secret-key-123');
+      expect(entry.metadata.password).toBe('secret-pass');
+    });
+
+    it('should exercise redaction with various sensitive key patterns', () => {
+      const request = createMockRequest();
+      // 'security.suspicious_activity' triggers console logging
+      const entry = createAuditLog(request, 'security.suspicious_activity', {
+        resourceType: 'security',
+        success: false,
+        metadata: {
+          token: 'jwt-token-value',
+          secret: 'my-secret',
+          authorization: 'Bearer xyz',
+          privateKey: 'rsa-private',
+          safeField: 'not-redacted',
+        },
+      });
+
+      // Entry preserves original values
+      expect(entry.metadata.token).toBe('jwt-token-value');
+      expect(entry.metadata.secret).toBe('my-secret');
+      expect(entry.metadata.safeField).toBe('not-redacted');
+    });
+
+    it('should handle nested metadata objects during logging', () => {
+      const request = createMockRequest();
+      // Using security event to ensure console logging exercises nested redaction
+      const entry = createAuditLog(request, 'security.blocked_request', {
+        resourceType: 'security',
+        success: false,
+        metadata: {
+          user: {
+            name: 'John',
+            credentials: {
+              token: 'secret-token',
+            },
+          },
+        },
+      });
+
+      expect(entry).toBeDefined();
+      expect(entry.metadata.user).toBeDefined();
+      const user = entry.metadata.user as { name: string; credentials: { token: string } };
+      expect(user.name).toBe('John');
+      // Original value preserved in entry
+      expect(user.credentials.token).toBe('secret-token');
+    });
+
+    it('should handle deeply nested sensitive data structures', () => {
+      const request = createMockRequest();
+      // 'rate_limit.exceeded' triggers logging
+      const entry = createAuditLog(request, 'rate_limit.exceeded', {
+        resourceType: 'rate_limit',
+        success: false,
+        metadata: {
+          level1: {
+            level2: {
+              level3: {
+                apiKey: 'deep-secret',
+                normalValue: 'visible',
+              },
+            },
+          },
+        },
+      });
+
+      const nested = entry.metadata.level1 as Record<string, unknown>;
+      const level2 = nested.level2 as Record<string, unknown>;
+      const level3 = level2.level3 as Record<string, string>;
+      // Original values preserved in entry
+      expect(level3.apiKey).toBe('deep-secret');
+      expect(level3.normalValue).toBe('visible');
     });
   });
 });

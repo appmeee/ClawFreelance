@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/Header';
+import { useEffect, useState } from 'react';
+
+import { FilterIcon, SearchIcon, TaskIcon, RocketIcon, CrownIcon } from '@/components/icons';
 import { Footer } from '@/components/layout/Footer';
-import { SearchIcon, FilterIcon, TaskIcon, RocketIcon, CrownIcon } from '@/components/icons';
+import { Header } from '@/components/layout/Header';
+import { useTranslation } from '@/lib/i18n';
 import { BoostBadge, QueuePositionBadge } from '@/components/boost';
 
 type BoostTier = 'standard' | 'featured' | 'urgent' | 'premium';
@@ -44,22 +46,14 @@ type Task = {
   queuePosition?: QueuePosition;
 };
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  open: { label: 'Open', color: 'var(--status-success)' },
-  claimed: { label: 'Claimed', color: 'var(--accent-amber)' },
-  in_progress: { label: 'In Progress', color: 'var(--accent-cyan)' },
-  verification: { label: 'Verifying', color: 'var(--status-pending)' },
-  completed: { label: 'Completed', color: 'var(--text-muted)' },
-};
-
-const difficultyConfig: Record<string, { label: string; dots: number }> = {
-  easy: { label: 'Easy', dots: 1 },
-  medium: { label: 'Medium', dots: 2 },
-  hard: { label: 'Hard', dots: 3 },
-};
-
 // Task Card Component
-function TaskCard({ task, isPremium = false }: { task: Task; isPremium?: boolean }) {
+function TaskCard({ task, statusConfig, difficultyConfig, t, isPremium = false }: { 
+  task: Task; 
+  statusConfig: Record<string, { label: string; color: string }>;
+  difficultyConfig: Record<string, { label: string; dots: number }>;
+  t: ReturnType<typeof useTranslation>['t'];
+  isPremium?: boolean;
+}) {
   const isBoostActive = task.boost?.isActive && task.boost.tier !== 'standard';
   const highlighted = isBoostActive && task.boost?.highlighted;
 
@@ -120,7 +114,7 @@ function TaskCard({ task, isPremium = false }: { task: Task; isPremium?: boolean
             ))}
             {task.requirements.length > 4 && (
               <span className="text-xs px-2 py-1 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                +{task.requirements.length - 4} more
+                {t('common.more', { count: task.requirements.length - 4 })}
               </span>
             )}
           </div>
@@ -129,7 +123,7 @@ function TaskCard({ task, isPremium = false }: { task: Task; isPremium?: boolean
         <div className="flex md:flex-col items-center md:items-end gap-4">
           <div className="text-right">
             <div className="font-mono text-xl font-bold" style={{ color: task.rewardType === 'crypto' ? 'var(--accent-amber)' : 'var(--status-success)' }}>
-              {task.rewardType === 'crypto' ? `$${task.rewardAmount}` : `${task.rewardAmount} pts`}
+              {task.rewardType === 'crypto' ? `$${task.rewardAmount}` : `${task.rewardAmount} ${t('common.pts')}`}
             </div>
             {task.rewardCurrency && (
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{task.rewardCurrency}</div>
@@ -167,6 +161,7 @@ function TaskCard({ task, isPremium = false }: { task: Task; isPremium?: boolean
 }
 
 export default function TasksPage() {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [topPlacementTasks, setTopPlacementTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +174,20 @@ export default function TasksPage() {
     boostedOnly: false,
   });
 
+  const statusConfig: Record<string, { label: string; color: string }> = {
+    open: { label: t('tasks.open'), color: 'var(--status-success)' },
+    claimed: { label: t('tasks.claimed'), color: 'var(--accent-amber)' },
+    in_progress: { label: t('tasks.inProgress'), color: 'var(--accent-cyan)' },
+    verification: { label: t('tasks.verifying'), color: 'var(--status-pending)' },
+    completed: { label: t('tasks.completed'), color: 'var(--text-muted)' },
+  };
+
+  const difficultyConfig: Record<string, { label: string; dots: number }> = {
+    easy: { label: t('tasks.easy'), dots: 1 },
+    medium: { label: t('tasks.medium'), dots: 2 },
+    hard: { label: t('tasks.hard'), dots: 3 },
+  };
+
   useEffect(() => {
     const fetchTasks = async () => {
       setLoading(true);
@@ -190,7 +199,7 @@ export default function TasksPage() {
         if (filters.sortBy) params.set('sortBy', filters.sortBy);
         if (filters.boostedOnly) params.set('boostedOnly', 'true');
 
-        const response = await fetch(`/api/tasks?${params.toString()}`);
+        const response = await fetch(`/api/v1/tasks?${params.toString()}`);
         const data = await response.json();
         setTasks(data.tasks || []);
         setTopPlacementTasks(data.topPlacement || []);
@@ -204,9 +213,10 @@ export default function TasksPage() {
     fetchTasks();
   }, [filters.status, filters.type, filters.difficulty, filters.sortBy, filters.boostedOnly]);
 
-  const filteredTasks = tasks.filter(task =>
-    task.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-    task.description.toLowerCase().includes(filters.search.toLowerCase())
+  const filteredTasks = tasks.filter(
+    (task) =>
+      task.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+      task.description.toLowerCase().includes(filters.search.toLowerCase())
   );
 
   return (
@@ -219,29 +229,38 @@ export default function TasksPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  <TaskIcon size={36} className="inline mr-3" style={{ color: 'var(--accent-cyan)' }} />
-                  Tasks
+                  <TaskIcon
+                    size={36}
+                    className="inline mr-3"
+                    style={{ color: 'var(--accent-cyan)' }}
+                  />
+                  {t('tasks.title')}
                 </h1>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  Browse and claim available work
-                </p>
+                <p style={{ color: 'var(--text-secondary)' }}>{t('tasks.description')}</p>
               </div>
               <Link href="/post-task" className="btn btn-primary">
-                Post Task
+                {t('tasks.postTask')}
               </Link>
             </div>
 
             {/* Filters */}
-            <div className="rounded-xl border p-4 mb-8" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-card)' }}>
+            <div
+              className="rounded-xl border p-4 mb-8"
+              style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-card)' }}
+            >
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Search */}
                 <div className="flex-1 relative">
-                  <SearchIcon size={20} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+                  <SearchIcon
+                    size={20}
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--text-muted)' }}
+                  />
                   <input
                     type="text"
-                    placeholder="Search tasks..."
+                    placeholder={t('tasks.searchPlaceholder')}
                     value={filters.search}
-                    onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-transparent focus:outline-none focus:border-[var(--accent-cyan)]"
                     style={{ borderColor: 'var(--border-medium)' }}
                   />
@@ -251,39 +270,41 @@ export default function TasksPage() {
                 <div className="flex flex-wrap gap-3">
                   <select
                     value={filters.status}
-                    onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
                     className="px-4 py-2.5 rounded-lg border bg-[var(--bg-tertiary)] focus:outline-none"
                     style={{ borderColor: 'var(--border-medium)' }}
                   >
-                    <option value="">All Status</option>
-                    <option value="open">Open</option>
-                    <option value="claimed">Claimed</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="verification">Verification</option>
+                    <option value="">{t('tasks.filters.allStatus')}</option>
+                    <option value="open">{t('tasks.open')}</option>
+                    <option value="claimed">{t('tasks.claimed')}</option>
+                    <option value="in_progress">{t('tasks.inProgress')}</option>
+                    <option value="verification">{t('tasks.filters.verification')}</option>
                   </select>
 
                   <select
                     value={filters.type}
-                    onChange={e => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, type: e.target.value }))}
                     className="px-4 py-2.5 rounded-lg border bg-[var(--bg-tertiary)] focus:outline-none"
                     style={{ borderColor: 'var(--border-medium)' }}
                   >
-                    <option value="">All Types</option>
-                    <option value="bounty">Bounty</option>
-                    <option value="code_contribution">Contribution</option>
-                    <option value="showcase">Showcase</option>
+                    <option value="">{t('tasks.filters.allTypes')}</option>
+                    <option value="bounty">{t('tasks.filters.bounty')}</option>
+                    <option value="code_contribution">{t('tasks.filters.contribution')}</option>
+                    <option value="showcase">{t('tasks.filters.showcase')}</option>
                   </select>
 
                   <select
                     value={filters.difficulty}
-                    onChange={e => setFilters(prev => ({ ...prev, difficulty: e.target.value }))}
+                    onChange={(e) =>
+                      setFilters((prev) => ({ ...prev, difficulty: e.target.value }))
+                    }
                     className="px-4 py-2.5 rounded-lg border bg-[var(--bg-tertiary)] focus:outline-none"
                     style={{ borderColor: 'var(--border-medium)' }}
                   >
-                    <option value="">All Difficulty</option>
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
+                    <option value="">{t('tasks.filters.allDifficulty')}</option>
+                    <option value="easy">{t('tasks.easy')}</option>
+                    <option value="medium">{t('tasks.medium')}</option>
+                    <option value="hard">{t('tasks.hard')}</option>
                   </select>
 
                   <select
@@ -319,12 +340,18 @@ export default function TasksPage() {
             {loading ? (
               <div className="text-center py-20">
                 <div className="inline-block w-8 h-8 border-2 border-[var(--accent-cyan)] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Loading tasks...</p>
+                <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>
+                  {t('tasks.loadingTasks')}
+                </p>
               </div>
             ) : filteredTasks.length === 0 ? (
               <div className="text-center py-20">
-                <FilterIcon size={48} className="mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
-                <p style={{ color: 'var(--text-secondary)' }}>No tasks found matching your filters</p>
+                <FilterIcon
+                  size={48}
+                  className="mx-auto mb-4"
+                  style={{ color: 'var(--text-muted)' }}
+                />
+                <p style={{ color: 'var(--text-secondary)' }}>{t('tasks.noTasksFound')}</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -339,7 +366,7 @@ export default function TasksPage() {
                     </div>
                     <div className="grid gap-4">
                       {topPlacementTasks.map(task => (
-                        <TaskCard key={task.id} task={task} isPremium />
+                        <TaskCard key={task.id} task={task} statusConfig={statusConfig} difficultyConfig={difficultyConfig} t={t} isPremium />
                       ))}
                     </div>
                   </div>
@@ -350,7 +377,7 @@ export default function TasksPage() {
                   {filteredTasks
                     .filter(task => !topPlacementTasks.some(t => t.id === task.id) || filters.boostedOnly)
                     .map(task => (
-                      <TaskCard key={task.id} task={task} />
+                      <TaskCard key={task.id} task={task} statusConfig={statusConfig} difficultyConfig={difficultyConfig} t={t} />
                     ))}
                 </div>
               </div>

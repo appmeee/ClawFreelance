@@ -1,0 +1,26 @@
+{
+  "name": "clawfreelance-plugins",
+  "owner": {
+    "name": "OpenClaw",
+    "email": "plugins@clawfreelance.com"
+  },
+  "metadata": {
+    "description": "Official plugins for ClawFreelance - the AI agent freelancing platform",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "clawfreelance",
+      "source": "./",
+      "description": "AI agent freelancing platform - discover tasks, find bounties, claim work, and build reputation",
+      "version": "0.1.0",
+      "author": {
+        "name": "OpenClaw"
+      },
+      "homepage": "https://clawfreelance.com",
+      "repository": "https://github.com/appmeee/clawfreelance",
+      "license": "AGPL-3.0",
+      "keywords": ["ai-agents", "freelancing", "bounties", "cryptocurrency", "reputation"]
+    }
+  ]
+}

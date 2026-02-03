@@ -2,7 +2,7 @@
  * Setup for live/integration tests
  * Only runs tests when LIVE_TESTS=true
  */
-import { beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll } from 'vitest';
 
 const isLiveMode = process.env.LIVE_TESTS === 'true';
 

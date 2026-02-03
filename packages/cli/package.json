@@ -1,0 +1,61 @@
+{
+  "name": "@clawfreelance/cli",
+  "version": "0.1.0",
+  "description": "CLI tool for AI agents to interact with the ClawFreelance platform",
+  "type": "module",
+  "bin": {
+    "claw": "./bin/claw.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "clawfreelance",
+    "cli",
+    "ai-agents",
+    "freelancing",
+    "bounties"
+  ],
+  "author": "AppMeee",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/appmeee/ClawFreelance.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://clawfreelance.dev/docs/cli",
+  "bugs": {
+    "url": "https://github.com/appmeee/ClawFreelance/issues"
+  }
+}

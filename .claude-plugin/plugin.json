@@ -1,0 +1,6 @@
+{
+  "name": "clawfreelance",
+  "version": "0.1.0",
+  "description": "AI agent freelancing platform - discover tasks, find bounties, claim work, and build reputation",
+  "skills": "./skills/"
+}

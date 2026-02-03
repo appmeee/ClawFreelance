@@ -1,4 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+import { useTranslation } from '@/lib/i18n';
 
 type TaskStatus = 'open' | 'claimed' | 'in_progress' | 'verification';
 type TaskType = 'bounty' | 'contribution' | 'showcase';
@@ -15,76 +20,113 @@ interface Task {
   claimedBy?: string;
 }
 
-const mockTasks: Task[] = [
-  {
-    id: 'TASK-042',
-    title: 'Fix authentication race condition in session handler',
-    type: 'bounty',
-    status: 'open',
-    reward: '$500',
-    rewardType: 'crypto',
-    difficulty: 'hard',
-    source: 'github.com/openclaw/openclaw',
-  },
-  {
-    id: 'TASK-043',
-    title: 'Add dark mode support to dashboard components',
-    type: 'contribution',
-    status: 'claimed',
-    reward: '150 pts',
-    rewardType: 'points',
-    difficulty: 'medium',
-    source: 'direct',
-    claimedBy: 'agent-0x7f8a',
-  },
-  {
-    id: 'TASK-044',
-    title: 'Optimize PostgreSQL queries for task listing endpoint',
-    type: 'bounty',
-    status: 'in_progress',
-    reward: '$250',
-    rewardType: 'crypto',
-    difficulty: 'medium',
-    source: 'gitcoin',
-    claimedBy: 'agent-0x3b2c',
-  },
-  {
-    id: 'TASK-045',
-    title: 'Implement WebSocket real-time notifications',
-    type: 'bounty',
-    status: 'open',
-    reward: '$750',
-    rewardType: 'crypto',
-    difficulty: 'hard',
-    source: 'algora',
-  },
-  {
-    id: 'TASK-046',
-    title: 'Create comprehensive API documentation',
-    type: 'contribution',
-    status: 'verification',
-    reward: '200 pts',
-    rewardType: 'points',
-    difficulty: 'easy',
-    source: 'direct',
-    claimedBy: 'agent-0x9d4e',
-  },
-];
+interface ApiTask {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  rewardAmount: number;
+  rewardCurrency?: string;
+  rewardType: string;
+  difficulty: string;
+  source: string;
+  claimedBy?: string;
+}
 
-const statusConfig: Record<TaskStatus, { label: string; color: string }> = {
-  open: { label: 'Open', color: 'var(--status-success)' },
-  claimed: { label: 'Claimed', color: 'var(--accent-amber)' },
-  in_progress: { label: 'In Progress', color: 'var(--accent-cyan)' },
-  verification: { label: 'Verifying', color: 'var(--status-pending)' },
+function formatReward(amount: number, type: string, currency?: string): string {
+  if (type === 'points') return `${amount} pts`;
+  if (type === 'crypto' && currency) return `$${amount}`;
+  return `${amount}`;
+}
+
+function mapApiTaskToTask(apiTask: ApiTask): Task {
+  return {
+    id: apiTask.id.slice(0, 8).toUpperCase(),
+    title: apiTask.title,
+    type: (apiTask.type === 'code_contribution' ? 'contribution' : apiTask.type) as TaskType,
+    status: apiTask.status as TaskStatus,
+    reward: formatReward(apiTask.rewardAmount, apiTask.rewardType, apiTask.rewardCurrency),
+    rewardType: apiTask.rewardType as 'crypto' | 'points',
+    difficulty: apiTask.difficulty as 'easy' | 'medium' | 'hard',
+    source: apiTask.source,
+    claimedBy: apiTask.claimedBy,
+  };
+}
+
+const statusConfig: Record<TaskStatus, { labelKey: string; color: string }> = {
+  open: { labelKey: 'status.open', color: 'var(--status-success)' },
+  claimed: { labelKey: 'status.claimed', color: 'var(--accent-amber)' },
+  in_progress: { labelKey: 'status.inProgress', color: 'var(--accent-cyan)' },
+  verification: { labelKey: 'status.verification', color: 'var(--status-pending)' },
 };
 
-const difficultyConfig: Record<string, { label: string; dots: number }> = {
-  easy: { label: 'Easy', dots: 1 },
-  medium: { label: 'Medium', dots: 2 },
-  hard: { label: 'Hard', dots: 3 },
+const difficultyConfig: Record<string, { labelKey: string; dots: number }> = {
+  easy: { labelKey: 'difficulty.easy', dots: 1 },
+  medium: { labelKey: 'difficulty.medium', dots: 2 },
+  hard: { labelKey: 'difficulty.hard', dots: 3 },
 };
 
 export function ActiveTasks() {
+  const { t } = useTranslation();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState({ open: 0, inProgress: 0, verification: 0, totalBounty: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTasks() {
+      try {
+        const response = await fetch('/api/v1/tasks?limit=5&sortBy=created_at&sortOrder=desc');
+        const data = await response.json();
+        if (data.tasks) {
+          setTasks(data.tasks.map(mapApiTaskToTask));
+        }
+
+        // Fetch stats
+        const statsResponse = await fetch('/api/v1/tasks?limit=1');
+        const statsData = await statsResponse.json();
+        if (statsData.pagination) {
+          // Get counts by status
+          const [openRes, inProgressRes, verificationRes, bountyRes] = await Promise.all([
+            fetch('/api/v1/tasks?status=open&limit=1'),
+            fetch('/api/v1/tasks?status=in_progress&limit=1'),
+            fetch('/api/v1/tasks?status=verification&limit=1'),
+            fetch('/api/v1/tasks?type=bounty&status=open&limit=100'),
+          ]);
+          const [openData, inProgressData, verificationData, bountyData] = await Promise.all([
+            openRes.json(),
+            inProgressRes.json(),
+            verificationRes.json(),
+            bountyRes.json(),
+          ]);
+          const totalBounty =
+            bountyData.tasks?.reduce((sum: number, t: ApiTask) => sum + (t.rewardAmount || 0), 0) ||
+            0;
+          setStats({
+            open: openData.pagination?.total || 0,
+            inProgress: inProgressData.pagination?.total || 0,
+            verification: verificationData.pagination?.total || 0,
+            totalBounty,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTasks();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="py-20 px-6">
+        <div className="max-w-6xl mx-auto text-center">
+          <div className="animate-pulse">Loading tasks...</div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20 px-6">
       <div className="max-w-6xl mx-auto">
@@ -92,15 +134,24 @@ export function ActiveTasks() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold mb-2">
-              Live <span style={{ color: 'var(--accent-cyan)' }}>Task Feed</span>
+              {t.rich('activeTasks.sectionTitle', {
+                highlight: (chunks) => (
+                  <span style={{ color: 'var(--accent-cyan)' }}>{chunks}</span>
+                ),
+              })}
             </h2>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Real-time view of tasks across the platform
-            </p>
+            <p style={{ color: 'var(--text-secondary)' }}>{t('activeTasks.sectionDescription')}</p>
           </div>
           <Link href="/tasks" className="btn btn-secondary text-sm">
-            View All Tasks
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {t('activeTasks.viewAllTasks')}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </Link>
@@ -108,7 +159,7 @@ export function ActiveTasks() {
 
         {/* Mobile: Card view */}
         <div className="md:hidden space-y-4">
-          {mockTasks.map((task) => (
+          {tasks.map((task) => (
             <div
               key={task.id}
               className="rounded-xl border p-4 hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
@@ -123,14 +174,26 @@ export function ActiveTasks() {
                   <span className="font-mono text-sm" style={{ color: 'var(--accent-cyan)' }}>
                     {task.id}
                   </span>
-                  <span className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                    {task.source.includes('github') ? 'GH' : task.source.includes('gitcoin') ? 'GC' : task.source.includes('algora') ? 'AL' : 'DR'}
+                  <span
+                    className="text-xs font-mono px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+                  >
+                    {task.source.includes('github')
+                      ? 'GH'
+                      : task.source.includes('gitcoin')
+                        ? 'GC'
+                        : task.source.includes('algora')
+                          ? 'AL'
+                          : 'DR'}
                   </span>
                 </div>
                 <span
                   className="font-mono text-sm font-bold"
                   style={{
-                    color: task.rewardType === 'crypto' ? 'var(--accent-amber)' : 'var(--status-success)',
+                    color:
+                      task.rewardType === 'crypto'
+                        ? 'var(--accent-amber)'
+                        : 'var(--status-success)',
                   }}
                 >
                   {task.reward}
@@ -153,7 +216,7 @@ export function ActiveTasks() {
                     className="w-1.5 h-1.5 rounded-full"
                     style={{ background: statusConfig[task.status].color }}
                   />
-                  {statusConfig[task.status].label}
+                  {t(`activeTasks.${statusConfig[task.status].labelKey}`)}
                 </span>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
@@ -171,13 +234,16 @@ export function ActiveTasks() {
                     ))}
                   </div>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {difficultyConfig[task.difficulty].label}
+                    {t(`activeTasks.${difficultyConfig[task.difficulty].labelKey}`)}
                   </span>
                 </div>
               </div>
               {task.claimedBy && (
-                <p className="text-xs font-mono mt-2 pt-2 border-t" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-subtle)' }}>
-                  Claimed by: {task.claimedBy}
+                <p
+                  className="text-xs font-mono mt-2 pt-2 border-t"
+                  style={{ color: 'var(--text-muted)', borderColor: 'var(--border-subtle)' }}
+                >
+                  {t('activeTasks.claimedBy')} {task.claimedBy}
                 </p>
               )}
             </div>
@@ -201,16 +267,16 @@ export function ActiveTasks() {
               color: 'var(--text-muted)',
             }}
           >
-            <div className="col-span-1">ID</div>
-            <div className="col-span-4">Task</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2">Reward</div>
-            <div className="col-span-2">Difficulty</div>
-            <div className="col-span-1">Source</div>
+            <div className="col-span-1">{t('activeTasks.tableHeaders.id')}</div>
+            <div className="col-span-4">{t('activeTasks.tableHeaders.task')}</div>
+            <div className="col-span-2">{t('activeTasks.tableHeaders.status')}</div>
+            <div className="col-span-2">{t('activeTasks.tableHeaders.reward')}</div>
+            <div className="col-span-2">{t('activeTasks.tableHeaders.difficulty')}</div>
+            <div className="col-span-1">{t('activeTasks.tableHeaders.source')}</div>
           </div>
 
           {/* Table rows */}
-          {mockTasks.map((task) => (
+          {tasks.map((task) => (
             <div
               key={task.id}
               className="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b last:border-b-0 hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
@@ -246,7 +312,7 @@ export function ActiveTasks() {
                     className="w-1.5 h-1.5 rounded-full"
                     style={{ background: statusConfig[task.status].color }}
                   />
-                  {statusConfig[task.status].label}
+                  {t(`activeTasks.${statusConfig[task.status].labelKey}`)}
                 </span>
               </div>
 
@@ -255,7 +321,10 @@ export function ActiveTasks() {
                 <span
                   className="font-mono text-sm font-medium"
                   style={{
-                    color: task.rewardType === 'crypto' ? 'var(--accent-amber)' : 'var(--status-success)',
+                    color:
+                      task.rewardType === 'crypto'
+                        ? 'var(--accent-amber)'
+                        : 'var(--status-success)',
                   }}
                 >
                   {task.reward}
@@ -280,7 +349,7 @@ export function ActiveTasks() {
                     ))}
                   </div>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {difficultyConfig[task.difficulty].label}
+                    {t(`activeTasks.${difficultyConfig[task.difficulty].labelKey}`)}
                   </span>
                 </div>
               </div>
@@ -288,7 +357,13 @@ export function ActiveTasks() {
               {/* Source */}
               <div className="col-span-1">
                 <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {task.source.includes('github') ? 'GH' : task.source.includes('gitcoin') ? 'GC' : task.source.includes('algora') ? 'AL' : 'DR'}
+                  {task.source.includes('github')
+                    ? 'GH'
+                    : task.source.includes('gitcoin')
+                      ? 'GC'
+                      : task.source.includes('algora')
+                        ? 'AL'
+                        : 'DR'}
                 </span>
               </div>
             </div>
@@ -296,22 +371,42 @@ export function ActiveTasks() {
         </div>
 
         {/* Bottom stats */}
-        <div className="flex flex-wrap gap-6 mt-6 justify-center text-sm" style={{ color: 'var(--text-muted)' }}>
+        <div
+          className="flex flex-wrap gap-6 mt-6 justify-center text-sm"
+          style={{ color: 'var(--text-muted)' }}
+        >
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--status-success)' }} />
-            <span>Open: 847</span>
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: 'var(--status-success)' }}
+            />
+            <span>
+              {t('activeTasks.bottomStats.open')} {stats.open}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ background: 'var(--accent-cyan)' }} />
-            <span>In Progress: 234</span>
+            <span>
+              {t('activeTasks.bottomStats.inProgress')} {stats.inProgress}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--status-pending)' }} />
-            <span>Verification: 89</span>
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: 'var(--status-pending)' }}
+            />
+            <span>
+              {t('activeTasks.bottomStats.verification')} {stats.verification}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-mono" style={{ color: 'var(--accent-amber)' }}>$127K</span>
-            <span>in open bounties</span>
+            <span className="font-mono" style={{ color: 'var(--accent-amber)' }}>
+              $
+              {stats.totalBounty >= 1000
+                ? `${Math.round(stats.totalBounty / 1000)}K`
+                : stats.totalBounty}
+            </span>
+            <span>{t('activeTasks.bottomStats.inOpenBounties')}</span>
           </div>
         </div>
       </div>

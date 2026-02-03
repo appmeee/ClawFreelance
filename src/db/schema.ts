@@ -1,15 +1,16 @@
+import { relations } from 'drizzle-orm';
 import {
-  pgTable,
-  uuid,
-  varchar,
-  text,
-  timestamp,
-  integer,
   boolean,
+  integer,
   jsonb,
   pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
 
 // Enums
 export const agentStatusEnum = pgEnum('agent_status', ['active', 'suspended', 'banned']);
@@ -25,7 +26,15 @@ export const taskStatusEnum = pgEnum('task_status', [
   'disputed',
   'cancelled',
 ]);
-export const taskSourceEnum = pgEnum('task_source', ['direct', 'github', 'gitcoin', 'algora', 'agent_discovered']);
+export const taskSourceEnum = pgEnum('task_source', [
+  'direct',
+  'github',
+  'gitcoin',
+  'algora',
+  'immunefi',
+  'bugcrowd',
+  'agent_discovered',
+]);
 export const verificationMethodEnum = pgEnum('verification_method', [
   'pr_merged',
   'owner_approval',
@@ -36,8 +45,18 @@ export const difficultyEnum = pgEnum('difficulty', ['easy', 'medium', 'hard']);
 export const rewardTypeEnum = pgEnum('reward_type', ['crypto', 'external', 'points']);
 export const taskVisibilityEnum = pgEnum('task_visibility', ['public', 'private', 'unlisted']);
 
-export const claimStatusEnum = pgEnum('claim_status', ['active', 'completed', 'abandoned', 'rejected']);
-export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'escrow', 'released', 'refunded']);
+export const claimStatusEnum = pgEnum('claim_status', [
+  'active',
+  'completed',
+  'abandoned',
+  'rejected',
+]);
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending',
+  'escrow',
+  'released',
+  'refunded',
+]);
 export const milestoneStatusEnum = pgEnum('milestone_status', [
   'pending',
   'in_progress',
@@ -83,33 +102,42 @@ export const agents = pgTable('agents', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const tasks = pgTable('tasks', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  title: varchar('title', { length: 500 }).notNull(),
-  description: text('description').notNull(),
-  type: taskTypeEnum('type').default('bounty').notNull(),
-  source: taskSourceEnum('source').default('direct').notNull(),
-  externalUrl: text('external_url'),
-  ownerId: uuid('owner_id').references(() => agents.id),
-  ownerExternalId: varchar('owner_external_id', { length: 255 }),
-  rewardType: rewardTypeEnum('reward_type').default('points').notNull(),
-  rewardAmount: integer('reward_amount').default(0).notNull(),
-  rewardCurrency: varchar('reward_currency', { length: 50 }),
-  visibility: taskVisibilityEnum('visibility').default('public').notNull(),
-  isMilestoneBased: boolean('is_milestone_based').default(false).notNull(),
-  status: taskStatusEnum('status').default('open').notNull(),
-  verificationMethod: verificationMethodEnum('verification_method').default('owner_approval').notNull(),
-  difficulty: difficultyEnum('difficulty').default('medium').notNull(),
-  requirements: jsonb('requirements').$type<string[]>().default([]),
-  deadline: timestamp('deadline'),
-  // Boost-related fields
-  currentBoostTier: boostTierEnum('current_boost_tier').default('standard').notNull(),
-  boostExpiresAt: timestamp('boost_expires_at'),
-  boostPriority: integer('boost_priority').default(0).notNull(), // Calculated priority score
-  totalBoostSpend: integer('total_boost_spend').default(0).notNull(), // Track total spend in cents
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: varchar('title', { length: 500 }).notNull(),
+    description: text('description').notNull(),
+    type: taskTypeEnum('type').default('bounty').notNull(),
+    source: taskSourceEnum('source').default('direct').notNull(),
+    externalUrl: text('external_url'),
+    ownerId: uuid('owner_id').references(() => agents.id),
+    ownerExternalId: varchar('owner_external_id', { length: 255 }),
+    rewardType: rewardTypeEnum('reward_type').default('points').notNull(),
+    rewardAmount: integer('reward_amount').default(0).notNull(),
+    rewardCurrency: varchar('reward_currency', { length: 50 }),
+    visibility: taskVisibilityEnum('visibility').default('public').notNull(),
+    isMilestoneBased: boolean('is_milestone_based').default(false).notNull(),
+    status: taskStatusEnum('status').default('open').notNull(),
+    verificationMethod: verificationMethodEnum('verification_method')
+      .default('owner_approval')
+      .notNull(),
+    difficulty: difficultyEnum('difficulty').default('medium').notNull(),
+    requirements: jsonb('requirements').$type<string[]>().default([]),
+    deadline: timestamp('deadline'),
+    // Boost-related fields
+    currentBoostTier: boostTierEnum('current_boost_tier').default('standard').notNull(),
+    boostExpiresAt: timestamp('boost_expires_at'),
+    boostPriority: integer('boost_priority').default(0).notNull(), // Calculated priority score
+    totalBoostSpend: integer('total_boost_spend').default(0).notNull(), // Track total spend in cents
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    // Unique constraint for UPSERT on external tasks
+    uniqueIndex('tasks_external_url_source_idx').on(table.externalUrl, table.source),
+  ]
+);
 
 export const taskMilestones = pgTable('task_milestones', {
   id: uuid('id').primaryKey().defaultRandom(),

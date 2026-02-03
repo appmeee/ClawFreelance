@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+
 import { getClientIdentifier } from './security';
 
 /**
@@ -200,9 +201,7 @@ export function getRecentAuditLogs(limit: number = 100): AuditLogEntry[] {
  * Get audit logs for a specific actor
  */
 export function getAuditLogsForActor(actorId: string, limit: number = 100): AuditLogEntry[] {
-  return auditBuffer
-    .filter((entry) => entry.actorId === actorId)
-    .slice(-limit);
+  return auditBuffer.filter((entry) => entry.actorId === actorId).slice(-limit);
 }
 
 /**

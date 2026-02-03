@@ -1,0 +1,9 @@
+# Build output
+dist/
+
+# Dependencies (symlinks in monorepo)
+node_modules/
+
+# Test artifacts
+.vite/
+coverage/

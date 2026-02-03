@@ -2,7 +2,7 @@
  * Setup for gateway/API tests
  * Configures test server and API mocking
  */
-import { beforeAll, afterAll, afterEach } from 'vitest';
+import { afterAll, afterEach, beforeAll } from 'vitest';
 
 // Mock environment variables for gateway tests
 // Note: NODE_ENV is read-only in TypeScript, set via test command

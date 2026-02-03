@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-test:
-    name: Lint & Test
+  quality:
+    name: Code Quality
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,19 +29,62 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Lint (ESLint + import sorting)
         run: bun run lint
 
-      - name: Type check
-        run: bun run tsc --noEmit
+      - name: Format check (Prettier)
+        run: bun run format:check
 
-      - name: Run tests
-        run: bun run test:run
+      - name: Dead code detection (Knip)
+        run: bun run knip
+        continue-on-error: true # Warning only for now
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: quality
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run tests with coverage
+        run: bun run test:run --coverage --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json
+
+      - name: Check coverage threshold (80%)
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          echo "Line coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage is below 80% threshold!"
+            exit 1
+          fi
+          echo "Coverage meets 80% threshold ✓"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: lint-and-test
+    needs: test
     permissions:
       contents: read
 
@@ -60,7 +103,56 @@ jobs:
       - name: Build
         run: bun run build
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/clawfreelance"
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/clawfreelance'
+
+      - name: Check bundle size
+        run: |
+          # Get the size of the .next directory
+          BUNDLE_SIZE=$(du -sm .next | cut -f1)
+          echo "Bundle size: ${BUNDLE_SIZE}MB"
+
+          # Warn if bundle exceeds 50MB
+          if [ "$BUNDLE_SIZE" -gt 50 ]; then
+            echo "::warning::Bundle size (${BUNDLE_SIZE}MB) exceeds 50MB threshold"
+          fi
+
+          # Fail if bundle exceeds 100MB
+          if [ "$BUNDLE_SIZE" -gt 100 ]; then
+            echo "::error::Bundle size (${BUNDLE_SIZE}MB) exceeds 100MB limit!"
+            exit 1
+          fi
+          echo "Bundle size is within limits ✓"
+
+  cli:
+    name: CLI Package
+    runs-on: ubuntu-latest
+    needs: quality
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build CLI
+        run: cd packages/cli && bun run build
+
+      - name: Run CLI tests
+        run: cd packages/cli && bun run test
+
+      - name: Test CLI help command
+        run: ./packages/cli/bin/claw.js --help
+
+      - name: Test CLI version
+        run: ./packages/cli/bin/claw.js --version
 
   security:
     name: Security Scan

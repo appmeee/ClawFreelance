@@ -529,8 +529,9 @@ export function validateCsrfTokenForSession(sessionId: string, token: string): b
 
 /**
  * Clean up expired CSRF tokens
+ * Exported for testing purposes
  */
-function cleanupExpiredCsrfTokens(): void {
+export function cleanupExpiredCsrfTokens(): void {
   const now = Date.now();
   for (const [sessionId, data] of csrfTokens.entries()) {
     if (now - data.createdAt > CSRF_TOKEN_EXPIRY_MS) {
@@ -610,7 +611,10 @@ export function sanitizeMarkdown(input: string): string {
   sanitized = sanitized.replace(/javascript:/gi, '');
 
   // Allow safe markdown but escape HTML
-  sanitized = sanitized.replace(/<(?!\/?(b|i|em|strong|code|pre|h[1-6]|ul|ol|li|p|br|a\s))[^>]+>/gi, '');
+  sanitized = sanitized.replace(
+    /<(?!\/?(b|i|em|strong|code|pre|h[1-6]|ul|ol|li|p|br|a\s))[^>]+>/gi,
+    ''
+  );
 
   // Limit length
   if (sanitized.length > 50000) {

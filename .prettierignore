@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+coverage/
+
+# Generated files
+*.lock
+bun.lock
+package-lock.json
+
+# Config files that shouldn't be formatted
+.env*
+*.md

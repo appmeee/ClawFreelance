@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractApiKey, getClientIdentifier, checkRateLimit } from './security';
+
+import { checkRateLimit, extractApiKey, getClientIdentifier } from './security';
 
 /**
  * Authentication and authorization utilities for ClawFreelance API
@@ -112,8 +113,8 @@ export function withAuth(
 
     // Check permissions
     if (options.requiredPermissions && options.requiredPermissions.length > 0) {
-      const hasPermission = options.requiredPermissions.every(
-        (perm) => authResult.agent!.permissions.includes(perm)
+      const hasPermission = options.requiredPermissions.every((perm) =>
+        authResult.agent!.permissions.includes(perm)
       );
 
       if (!hasPermission) {

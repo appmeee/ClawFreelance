@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useId } from 'react';
+
 import { cn } from '@/lib/utils';
 
 interface ClawLogoProps {
@@ -25,7 +25,6 @@ const sizeMap = {
  */
 export function ClawLogo({ className, size = 'md', animated = false }: ClawLogoProps) {
   const dimension = typeof size === 'number' ? size : sizeMap[size];
-  const id = useId();
 
   // For static logo, use the SVG from public folder
   if (!animated) {
@@ -42,10 +41,8 @@ export function ClawLogo({ className, size = 'md', animated = false }: ClawLogoP
   }
 
   // For animated logo, render inline SVG with CSS animations
-  // Use React useId for stable unique IDs across server/client
-  // Replace colons with dashes to make it CSS-safe
-  const safeId = id.replace(/:/g, '-');
-  const gradientId = `claw-gradient${safeId}`;
+  // Use a fixed ID since only one animated logo appears per page
+  const gradientId = 'claw-gradient-animated';
 
   return (
     <svg
@@ -85,7 +82,10 @@ export function ClawLogo({ className, size = 'md', animated = false }: ClawLogoP
         </linearGradient>
       </defs>
       {/* Body */}
-      <path d="M60 15 C30 15 15 35 15 52 C15 68 28 82 45 85 L47 92 L53 92 L53 85 C56 86 64 86 67 85 L67 92 L73 92 L75 85 C92 82 105 68 105 52 C105 35 90 15 60 15Z" fill={`url(#${gradientId})`} />
+      <path
+        d="M60 15 C30 15 15 35 15 52 C15 68 28 82 45 85 L47 92 L53 92 L53 85 C56 86 64 86 67 85 L67 92 L73 92 L75 85 C92 82 105 68 105 52 C105 35 90 15 60 15Z"
+        fill={`url(#${gradientId})`}
+      />
       {/* Left Cybernetic Claw */}
       <g className={`claw-left-${gradientId}`}>
         <path d="M18 48 L5 38 L0 44 L10 52 L0 62 L5 68 L18 58 Z" fill={`url(#${gradientId})`} />
@@ -93,16 +93,29 @@ export function ClawLogo({ className, size = 'md', animated = false }: ClawLogoP
       </g>
       {/* Right Cybernetic Claw */}
       <g className={`claw-right-${gradientId}`}>
-        <path d="M102 48 L115 38 L120 44 L110 52 L120 62 L115 68 L102 58 Z" fill={`url(#${gradientId})`} />
+        <path
+          d="M102 48 L115 38 L120 44 L110 52 L120 62 L115 68 L102 58 Z"
+          fill={`url(#${gradientId})`}
+        />
         <rect x="100" y="46" width="8" height="14" rx="1" fill={`url(#${gradientId})`} />
       </g>
       {/* Antenna */}
       <g className={`antenna-${gradientId}`}>
-        <path d="M42 20 Q32 8 30 14" stroke="var(--accent-cyan)" strokeWidth="3" strokeLinecap="round" />
+        <path
+          d="M42 20 Q32 8 30 14"
+          stroke="var(--accent-cyan)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
         <circle cx="30" cy="14" r="3" fill="var(--accent-cyan)" />
       </g>
       <g className={`antenna-right-${gradientId}`}>
-        <path d="M78 20 Q88 8 90 14" stroke="var(--accent-cyan)" strokeWidth="3" strokeLinecap="round" />
+        <path
+          d="M78 20 Q88 8 90 14"
+          stroke="var(--accent-cyan)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
         <circle cx="90" cy="14" r="3" fill="var(--accent-cyan)" />
       </g>
       {/* Eyes */}
@@ -111,7 +124,15 @@ export function ClawLogo({ className, size = 'md', animated = false }: ClawLogoP
       <circle cx="44" cy="37" r="3" fill="#f5fbff" />
       <circle cx="80" cy="37" r="3" fill="#f5fbff" />
       {/* Mouth - focused expression */}
-      <line x1="52" y1="58" x2="68" y2="58" stroke="var(--bg-primary)" strokeWidth="2.5" strokeLinecap="round" />
+      <line
+        x1="52"
+        y1="58"
+        x2="68"
+        y2="58"
+        stroke="var(--bg-primary)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
       {/* Laptop */}
       <rect x="35" y="88" width="50" height="22" rx="2" fill="#1a1a22" />
       <rect x="38" y="91" width="44" height="16" rx="1" fill="var(--bg-primary)" />
@@ -134,21 +155,22 @@ export function ClawLogoFull({ className, size = 'md', animated = false }: ClawL
   return (
     <div className={cn('flex items-center gap-3 group', className)}>
       <div className="relative">
-        <ClawLogo size={size} animated={animated} className="transition-transform group-hover:scale-110" />
+        <ClawLogo
+          size={size}
+          animated={animated}
+          className="transition-transform group-hover:scale-110"
+        />
         <div className="absolute inset-0 blur-lg opacity-30 bg-[var(--accent-cyan)]" />
       </div>
       <div>
-        <span
-          className="font-mono font-bold tracking-tight"
-          style={{ fontSize: dimension * 0.5 }}
-        >
+        <span className="font-mono font-bold tracking-tight" style={{ fontSize: dimension * 0.5 }}>
           Claw<span style={{ color: 'var(--accent-cyan)' }}>Freelance</span>
         </span>
         <div
           className="font-mono uppercase tracking-widest"
           style={{
             fontSize: dimension * 0.275,
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
           }}
         >
           Agent Marketplace

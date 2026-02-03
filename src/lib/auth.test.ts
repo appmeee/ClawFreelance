@@ -1,19 +1,24 @@
-import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
+import { describe, expect, it } from 'vitest';
+
 import {
   authenticateRequest,
-  validateContentType,
-  validateBodySize,
   errorResponse,
+  optionalAuth,
   successResponse,
+  validateBodySize,
+  validateContentType,
+  withAuth,
 } from './auth';
 
 // Helper to create mock NextRequest
-function createMockRequest(options: {
-  headers?: Record<string, string>;
-  method?: string;
-  url?: string;
-} = {}): NextRequest {
+function createMockRequest(
+  options: {
+    headers?: Record<string, string>;
+    method?: string;
+    url?: string;
+  } = {}
+): NextRequest {
   const headers = new Headers(options.headers || {});
   return {
     headers,
@@ -38,7 +43,7 @@ describe('Auth Module', () => {
 
     it('should reject API keys with wrong format', async () => {
       const request = createMockRequest({
-        headers: { 'authorization': 'Bearer invalid-key' },
+        headers: { authorization: 'Bearer invalid-key' },
       });
       const result = await authenticateRequest(request);
 
@@ -48,7 +53,7 @@ describe('Auth Module', () => {
 
     it('should reject short API keys', async () => {
       const request = createMockRequest({
-        headers: { 'authorization': 'Bearer clf_short' },
+        headers: { authorization: 'Bearer clf_short' },
       });
       const result = await authenticateRequest(request);
 
@@ -58,7 +63,7 @@ describe('Auth Module', () => {
     it('should accept valid Bearer token format', async () => {
       const validKey = 'clf_' + 'a'.repeat(60);
       const request = createMockRequest({
-        headers: { 'authorization': `Bearer ${validKey}` },
+        headers: { authorization: `Bearer ${validKey}` },
       });
       const result = await authenticateRequest(request);
 
@@ -80,7 +85,7 @@ describe('Auth Module', () => {
     it('should return agent info on successful auth', async () => {
       const validKey = 'clf_' + 'c'.repeat(60);
       const request = createMockRequest({
-        headers: { 'authorization': `Bearer ${validKey}` },
+        headers: { authorization: `Bearer ${validKey}` },
       });
       const result = await authenticateRequest(request);
 
@@ -214,14 +219,122 @@ describe('Auth Module', () => {
       });
 
       it('should include custom headers', async () => {
-        const response = successResponse(
-          { message: 'OK' },
-          200,
-          { 'X-Custom-Header': 'value' }
-        );
+        const response = successResponse({ message: 'OK' }, 200, { 'X-Custom-Header': 'value' });
 
         expect(response.headers.get('X-Custom-Header')).toBe('value');
       });
+    });
+  });
+
+  // ============================================
+  // WITH AUTH MIDDLEWARE TESTS
+  // ============================================
+  describe('withAuth', () => {
+    it('should return 401 when no API key provided', async () => {
+      const handler = withAuth(async (_req, agent) => {
+        return successResponse({ agentId: agent.id });
+      });
+
+      const request = createMockRequest();
+      const response = await handler(request);
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should call handler with authenticated agent', async () => {
+      const validKey = 'clf_' + 'd'.repeat(60);
+      const handler = withAuth(async (_req, agent) => {
+        return successResponse({ agentId: agent.id });
+      });
+
+      const request = createMockRequest({
+        headers: { authorization: `Bearer ${validKey}` },
+      });
+      const response = await handler(request);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.agentId).toBeDefined();
+    });
+
+    it('should return 429 when rate limit exceeded', async () => {
+      const uniqueId = `test-rate-${Date.now()}`;
+      const handler = withAuth(
+        async (_req, agent) => {
+          return successResponse({ agentId: agent.id });
+        },
+        {
+          rateLimit: { maxRequests: 1, windowMs: 60000 },
+        }
+      );
+
+      const validKey = 'clf_' + 'e'.repeat(60);
+      const request = createMockRequest({
+        headers: {
+          authorization: `Bearer ${validKey}`,
+          'x-forwarded-for': uniqueId,
+        },
+      });
+
+      // First request should succeed
+      await handler(request);
+
+      // Second request should be rate limited
+      const response2 = await handler(request);
+      expect(response2.status).toBe(429);
+    });
+
+    it('should return 403 when permissions missing', async () => {
+      const validKey = 'clf_' + 'f'.repeat(60);
+      const handler = withAuth(
+        async (_req, agent) => {
+          return successResponse({ agentId: agent.id });
+        },
+        {
+          requiredPermissions: ['admin', 'super-admin'],
+        }
+      );
+
+      const request = createMockRequest({
+        headers: { authorization: `Bearer ${validKey}` },
+      });
+      const response = await handler(request);
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toContain('Insufficient permissions');
+    });
+  });
+
+  // ============================================
+  // OPTIONAL AUTH TESTS
+  // ============================================
+  describe('optionalAuth', () => {
+    it('should return null when no API key provided', async () => {
+      const request = createMockRequest();
+      const result = await optionalAuth(request);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return agent when valid API key provided', async () => {
+      const validKey = 'clf_' + 'g'.repeat(60);
+      const request = createMockRequest({
+        headers: { authorization: `Bearer ${validKey}` },
+      });
+      const result = await optionalAuth(request);
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBeDefined();
+    });
+
+    it('should return null when invalid API key provided', async () => {
+      const request = createMockRequest({
+        headers: { authorization: 'Bearer invalid-key' },
+      });
+      const result = await optionalAuth(request);
+
+      expect(result).toBeNull();
     });
   });
 });

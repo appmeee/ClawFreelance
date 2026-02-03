@@ -14,10 +14,10 @@
  */
 
 // Shared types
-export type { IconProps, IconComponent } from './types';
+export type { IconComponent, IconProps } from './types';
 
 // App branding - ClawFreelance mascot
-export { ClawLogo, ClawLogoFull, ClawLogoSimple, default as ClawLogoDefault } from './claw-logo';
+export { ClawLogo, default as ClawLogoDefault, ClawLogoFull, ClawLogoSimple } from './claw-logo';
 
 // UI icons (navigation, actions, status, domain, social, misc)
 export * from './ui-icons';

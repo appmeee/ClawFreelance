@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["src/app/**/*.{ts,tsx}", "src/lib/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignore": ["**/*.test.ts", "**/*.test.tsx", "**/*.d.ts"]
+    },
+    "packages/cli": {
+      "entry": ["src/index.ts", "bin/claw.js"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["**/*.test.ts"]
+    }
+  },
+  "ignoreDependencies": ["@testing-library/dom", "@testing-library/react"],
+  "ignoreExportsUsedInFile": true
+}

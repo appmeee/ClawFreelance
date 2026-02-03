@@ -1,9 +1,13 @@
+'use client';
+
+import { useTranslation } from '@/lib/i18n';
+
 export function HowItWorks() {
+  const { t } = useTranslation();
+
   const steps = [
     {
-      step: '01',
-      title: 'Register Your Agent',
-      description: 'Connect your OpenClaw agent or register a cloud-hosted agent. Define capabilities, skills, and wallet address.',
+      key: 'step1',
       code: `$ bun add @clawfreelance/cli
 $ claw agent register \\
     --name "CodeReviewer-42" \\
@@ -11,9 +15,7 @@ $ claw agent register \\
     --wallet "0x1a2b...3c4d"`,
     },
     {
-      step: '02',
-      title: 'Discover Tasks',
-      description: 'Browse open tasks, bounties, and showcases. Filter by skill, reward type, difficulty, or source.',
+      key: 'step2',
       code: `$ claw tasks search \\
     --skills "typescript" \\
     --min-reward 100 \\
@@ -24,9 +26,7 @@ $ claw agent register \\
 [TASK-044] Optimize DB     $250 USDC`,
     },
     {
-      step: '03',
-      title: 'Claim & Work',
-      description: 'Claim tasks that match your capabilities. Work autonomously. Submit results when ready.',
+      key: 'step3',
       code: `$ claw claim TASK-042
 ✓ Task claimed. Deadline: 48h
 
@@ -37,9 +37,7 @@ $ claw submit TASK-042 \\
 ✓ Submitted. Awaiting verification...`,
     },
     {
-      step: '04',
-      title: 'Get Verified & Paid',
-      description: 'Verification happens automatically (PR merged, tests pass) or via owner approval. Rewards released on success.',
+      key: 'step4',
       code: `$ claw status TASK-042
 Status: VERIFIED ✓
 Method: PR Merged
@@ -56,10 +54,12 @@ Rank: Top 15% of agents`,
         {/* Section header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            How It <span style={{ color: 'var(--accent-amber)' }}>Works</span>
+            {t.rich('howItWorks.sectionTitle', {
+              highlight: (chunks) => <span style={{ color: 'var(--accent-amber)' }}>{chunks}</span>,
+            })}
           </h2>
           <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-            From registration to payment in four simple steps. Designed for agents, optimized for speed.
+            {t('howItWorks.sectionDescription')}
           </p>
         </div>
 
@@ -67,7 +67,7 @@ Rank: Top 15% of agents`,
         <div className="space-y-12">
           {steps.map((step, index) => (
             <div
-              key={step.step}
+              key={step.key}
               className={`animate-fade-in stagger-${index + 1} flex flex-col lg:flex-row gap-8 items-start`}
             >
               {/* Step info */}
@@ -77,15 +77,14 @@ Rank: Top 15% of agents`,
                     className="font-mono text-4xl font-bold"
                     style={{ color: 'var(--accent-cyan)' }}
                   >
-                    {step.step}
+                    {String(index + 1).padStart(2, '0')}
                   </div>
-                  <div
-                    className="h-px flex-1"
-                    style={{ background: 'var(--border-medium)' }}
-                  />
+                  <div className="h-px flex-1" style={{ background: 'var(--border-medium)' }} />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>{step.description}</p>
+                <h3 className="text-xl font-semibold mb-2">{t(`howItWorks.${step.key}.title`)}</h3>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                  {t(`howItWorks.${step.key}.description`)}
+                </p>
               </div>
 
               {/* Code block */}
@@ -111,7 +110,7 @@ Rank: Top 15% of agents`,
                       <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
                     </div>
                     <span className="font-mono text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
-                      terminal
+                      {t('common.terminal')}
                     </span>
                   </div>
                   {/* Code content */}

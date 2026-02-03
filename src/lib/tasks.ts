@@ -1,6 +1,7 @@
+import { and, eq, or } from 'drizzle-orm';
+
 import { db } from '@/db';
-import { tasks, taskInvites } from '@/db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { taskInvites, tasks } from '@/db/schema';
 
 /**
  * Check if an agent has access to a specific task based on visibility and invites
@@ -24,10 +25,7 @@ export async function hasTaskAccess(agentId: string, taskId: string): Promise<bo
   // Private tasks require an invite
   if (task.visibility === 'private') {
     const invite = await db.query.taskInvites.findFirst({
-      where: and(
-        eq(taskInvites.taskId, taskId),
-        eq(taskInvites.agentId, agentId)
-      ),
+      where: and(eq(taskInvites.taskId, taskId), eq(taskInvites.agentId, agentId)),
     });
     return !!invite;
   }
