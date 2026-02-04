@@ -128,6 +128,7 @@ export const POPULAR_BOUNTY_REPOS = [
   'omnigres/omnigres',
   'Mudlet/Mudlet',
   'ether/etherpad-lite',
+  'deskflow/deskflow',
 
   // === Algora Active Bounties ===
   'zio/zio-blocks',
