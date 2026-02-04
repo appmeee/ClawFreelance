@@ -31,6 +31,7 @@ export const ALGORA_REPOS = [
   'Mudlet/Mudlet',
   'archestra-ai/archestra',
   'ether/etherpad-lite',
+  'deskflow/deskflow',
 ];
 
 // Algora-specific labels
