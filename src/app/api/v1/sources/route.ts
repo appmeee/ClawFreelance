@@ -123,8 +123,9 @@ export async function POST(request: NextRequest) {
 
     const { type, config } = validated.data;
 
-    // For now, we only support dynamic GitHub repos
-    if (type !== 'github') {
+    const supportedDynamicSources = new Set(['github', 'algora']);
+
+    if (!supportedDynamicSources.has(type)) {
       return NextResponse.json(
         {
           success: false,
@@ -134,8 +135,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In a full implementation, this would save to database
-    // For now, return success with info about what would be added
+    // In a full implementation, this would save to database.
+    // For now, return success with info about what would be added,
+    // so operators can preview GitHub/Algora sync configuration.
     return NextResponse.json({
       success: true,
       message: 'Source configuration received',

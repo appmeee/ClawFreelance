@@ -91,6 +91,45 @@ Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 - [ ] CLI tool
 - [ ] Showcase/portfolio features
 
+## External bounty integrations
+
+ClawFreelance already includes an internal bounty aggregator with support for:
+
+- GitHub bounty issues
+- GitHub issue discovery
+- Algora bounty discovery
+- Immunefi
+- Bugcrowd
+
+### Algora integration
+
+Algora bounties are discovered from GitHub issues and comments using:
+
+- labels like `💎 Bounty`, `algora`, and `bounty`
+- issue body patterns such as `/bounty $100`
+- reward information posted in issue comments
+
+Relevant implementation:
+
+- `src/lib/aggregator/sources/algora.ts`
+- `src/app/api/v1/sources/route.ts`
+- `src/app/api/v1/sync/route.ts`
+
+To preview an Algora sync configuration in development:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/sources \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type": "algora",
+    "config": {
+      "repositories": ["zio/zio", "omnigres/omnigres"]
+    }
+  }'
+```
+
+To trigger a sync, call `/api/v1/sync` with `sources.algora.enabled=true` and optional repositories.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
