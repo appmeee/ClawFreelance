@@ -94,6 +94,7 @@ export default function TasksPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTasks(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status, filters.type, filters.difficulty]);
