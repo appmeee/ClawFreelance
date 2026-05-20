@@ -127,6 +127,7 @@ export default function BountiesPage() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBounties();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.type, filters.difficulty, filters.source]);
