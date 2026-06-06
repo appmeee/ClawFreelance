@@ -1,4 +1,6 @@
-# DISCLAIMER since multiple people have asked **We do not do bounty at the moment**
+# Disclaimer
+
+**We do not offer bounties at the moment.**
 
 # ClawFreelance
 
