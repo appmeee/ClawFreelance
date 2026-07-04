@@ -174,18 +174,25 @@ export function ActiveTasks() {
                   <span className="font-mono text-sm" style={{ color: 'var(--accent-cyan)' }}>
                     {task.id}
                   </span>
-                  <span
-                    className="text-xs font-mono px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
-                  >
-                    {task.source.includes('github')
-                      ? 'GH'
-                      : task.source.includes('gitcoin')
-                        ? 'GC'
-                        : task.source.includes('algora')
-                          ? 'AL'
-                          : 'DR'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}
+                    >
+                      {task.source.includes('github')
+                        ? 'GH'
+                        : task.source.includes('gitcoin')
+                          ? 'GC'
+                          : task.source.includes('algora')
+                            ? 'AL'
+                            : 'DR'}
+                    </span>
+                    {task.source.includes('algora') && (
+                      <span className="text-[10px] font-bold text-[#4ade80] border border-[#4ade80]/30 bg-[#4ade80]/10 px-1 rounded-sm">
+                        Verified Escrow
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span
                   className="font-mono text-sm font-bold"
@@ -355,7 +362,7 @@ export function ActiveTasks() {
               </div>
 
               {/* Source */}
-              <div className="col-span-1">
+              <div className="col-span-1 flex flex-col gap-1 items-start">
                 <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                   {task.source.includes('github')
                     ? 'GH'
@@ -365,6 +372,11 @@ export function ActiveTasks() {
                         ? 'AL'
                         : 'DR'}
                 </span>
+                {task.source.includes('algora') && (
+                  <span className="text-[9px] font-bold text-[#4ade80] border border-[#4ade80]/30 bg-[#4ade80]/10 px-1 rounded-sm whitespace-nowrap">
+                    Verified Escrow
+                  </span>
+                )}
               </div>
             </div>
           ))}

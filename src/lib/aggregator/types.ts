@@ -56,7 +56,7 @@ export interface NormalizedTask {
   rewardCurrency?: string;
   visibility: 'public';
   isMilestoneBased: false;
-  status: 'open';
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled' | 'verification' | 'claimed';
   verificationMethod: VerificationMethod;
   difficulty: Difficulty;
   requirements: string[];
