@@ -85,6 +85,7 @@ async function syncSource(source: BountySource): Promise<SyncResult> {
               difficulty: normalized.difficulty,
               requirements: normalized.requirements,
               deadline: normalized.deadline,
+              status: normalized.status,
               updatedAt: new Date(),
             },
           })
@@ -335,7 +336,7 @@ export async function updateGitHubTaskStatuses(): Promise<{
     .where(
       and(
         eq(tasks.status, 'open'),
-        sql`${tasks.source} IN ('github', 'algora')`,
+        sql`${tasks.source} IN ('github')`,
         sql`${tasks.externalUrl} IS NOT NULL`
       )
     )
