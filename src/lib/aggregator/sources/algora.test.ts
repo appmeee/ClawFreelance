@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AlgoraBountySource, createAlgoraSource } from './algora';
+
+import { AlgoraBountySource } from './algora';
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;

@@ -7,10 +7,6 @@
 
 import type { BountySource, NormalizedTask, RawBounty } from '../types';
 
-interface AlgoraAPIResponse {
-  items: AlgoraAPIBounty[];
-}
-
 interface AlgoraAPIBounty {
   id: string;
   url: string;
@@ -65,7 +61,7 @@ export class AlgoraBountySource implements BountySource {
 
       for (const item of items) {
         let rewardAmount = 0;
-        let rewardCurrency = 'USD';
+        const rewardCurrency = 'USD';
 
         if (item.reward && item.reward.amount_usd) {
           rewardAmount = Number(item.reward.amount_usd);
@@ -120,7 +116,7 @@ export class AlgoraBountySource implements BountySource {
   }
 }
 
-export function createAlgoraSource(customRepos?: string[]): AlgoraBountySource {
+export function createAlgoraSource(): AlgoraBountySource {
   return new AlgoraBountySource({
     token: process.env.GITHUB_TOKEN,
   });
