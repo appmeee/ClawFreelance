@@ -40,3 +40,4 @@ export {
 
 // Individual sources
 export { createGitHubSource, GitHubBountySource, POPULAR_BOUNTY_REPOS } from './sources/github';
+export { extractIssueHuntReward, ISSUEHUNT_REPOS, IssueHuntSource } from './sources/issuehunt';
