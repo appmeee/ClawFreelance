@@ -2,12 +2,14 @@
  * Bounty Aggregator
  *
  * Fetches open source bounties from GitHub, Gitcoin, Algora and other
+import { AlgoraSource } from './sources/algora';
  * platforms to seed real tasks into ClawFreelance.
  *
  * @example
  * ```ts
  * import { runSync, getSyncStats } from '@/lib/aggregator';
- *
+  new ImmunefiSource(),
+  new AlgoraSource()
  * // Run a full sync
  * const results = await runSync();
  *
