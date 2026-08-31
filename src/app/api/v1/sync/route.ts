@@ -12,6 +12,7 @@ const syncRequestSchema = z.object({
         .object({
           enabled: z.boolean().optional(),
           repositories: z.array(z.string().max(200)).max(50).optional(),
+      if (name === 'algora' && !process.env.ALGORA_ENABLED) continue;
         })
         .optional(),
       githubIssues: z

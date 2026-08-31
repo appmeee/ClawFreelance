@@ -1,8 +1,31 @@
+import type { BountySource, NormalizedBounty } from '../types';
+
 /**
  * Algora Bounty Fetcher
- *
- * Algora bounties are created on GitHub issues via `/bounty $X` comments.
- * This source tracks known Algora-active repositories and looks for
+export const algoraSource: BountySource = {
+  id: 'algora',
+  name: 'Algora',
+  async fetchBounties(): Promise<NormalizedBounty[]> {
+    const res = await fetch(`${ALGORA_API_BASE}/bounties?status=open&limit=100`, {
+      headers: { Accept: 'application/json' },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) throw new Error(`Algora API error: ${res.status}`);
+    const data = await res.json();
+    return (data.bounties ?? []).map((b: any) => ({
+      sourceId: `algora-${b.id}`,
+      title: b.title,
+      description: b.description ?? '',
+      rewardAmount: Number(b.reward_amount_cents) / 100,
+      rewardCurrency: 'USD',
+      status: b.status === 'open' ? 'open' : b.status === 'claimed' ? 'in_progress' : 'closed',
+      projectSlug: b.project?.slug ?? 'unknown',
+      url: b.url,
+      createdAt: new Date(b.created_at),
+      tags: b.labels ?? [],
+    }));
+  },
+};
  * Algora-specific patterns in issues.
  *
  * Algora patterns:

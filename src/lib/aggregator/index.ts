@@ -1,4 +1,5 @@
 /**
+import { algoraSource } from './sources/algora';
  * Bounty Aggregator
  *
  * Fetches open source bounties from GitHub, Gitcoin, Algora and other
@@ -6,6 +7,7 @@
  *
  * @example
  * ```ts
+  algora: algoraSource,
  * import { runSync, getSyncStats } from '@/lib/aggregator';
  *
  * // Run a full sync
