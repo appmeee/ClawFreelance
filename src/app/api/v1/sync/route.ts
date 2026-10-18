@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getSyncStats, runSync, type SyncConfig, updateGitHubTaskStatuses } from '@/lib/aggregator';
+import {
+  getSyncStats,
+  runSync,
+  type SyncConfig,
+  updateAlgoraTaskStatuses,
+  updateGitHubTaskStatuses,
+} from '@/lib/aggregator';
 import { POPULAR_BOUNTY_REPOS } from '@/lib/aggregator/sources/github';
 
 // Schema for sync request
@@ -24,6 +30,9 @@ const syncRequestSchema = z.object({
         .object({
           enabled: z.boolean().optional(),
           repositories: z.array(z.string().max(200)).max(50).optional(),
+          org: z.string().optional(),
+          limit: z.number().int().min(1).max(500).optional(),
+          minBounty: z.number().int().min(0).optional(),
         })
         .optional(),
       immunefi: z
@@ -166,8 +175,13 @@ export async function POST(request: NextRequest) {
     // Check for stale tasks (closed/merged issues)
     console.log('[sync] Checking for stale tasks...');
     const staleResult = await updateGitHubTaskStatuses();
+    const algoraStaleResult = await updateAlgoraTaskStatuses();
+    const totalCompleted = staleResult.completed + algoraStaleResult.completed;
+    const totalCancelled = staleResult.cancelled + algoraStaleResult.cancelled;
+    const totalErrors = staleResult.errors.length + algoraStaleResult.errors.length;
+
     console.log(
-      `[sync] Stale check: completed=${staleResult.completed} cancelled=${staleResult.cancelled}`
+      `[sync] Stale check: completed=${totalCompleted} cancelled=${totalCancelled}`
     );
 
     // Log the sync operation
@@ -175,7 +189,10 @@ export async function POST(request: NextRequest) {
       '[sync] Completed:',
       JSON.stringify({
         totals,
-        stale: staleResult,
+        stale: {
+          github: staleResult,
+          algora: algoraStaleResult,
+        },
         sources: results.map((r) => r.source),
         timestamp: new Date().toISOString(),
       })
@@ -187,9 +204,9 @@ export async function POST(request: NextRequest) {
         results,
         totals,
         staleTasksUpdated: {
-          completed: staleResult.completed,
-          cancelled: staleResult.cancelled,
-          errors: staleResult.errors.length,
+          completed: totalCompleted,
+          cancelled: totalCancelled,
+          errors: totalErrors,
         },
         syncedAt: new Date().toISOString(),
       },
